@@ -83,4 +83,24 @@ export default class WebpHero {
 			}
 		}
 	}
+	
+	async polyfillSingle({image, force = false}: {force?: boolean} = {}): Promise<void> {
+		if (!force && await detectWebpSupport()) return undefined
+		
+		const src = image.src
+		if (/.webp$/.test(src)) {
+			if (this.cache[src]) {
+				image.src = this.cache[src]
+				continue
+			}
+			try {
+				const webpdata = await loadBinaryData(src)
+				const pngdata = await this.decode(webpdata)
+				image.src = this.cache[src] = pngdata
+			} catch (error) {
+				console.error(`error decoding webp image "${src}"`, error)
+				throw error
+			}
+		}
+	}
 }
