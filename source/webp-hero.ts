@@ -83,20 +83,28 @@ export default class WebpHero {
 			}
 		}
 	}
-	
-	async polyfillSingle({image, force = false}: {force?: boolean} = {}): Promise<void> {
+    
+    async polyfillGroup({imageList, force = false}: {imageList?: Array<HTMLImageElement>, force?: boolean} = {}): Promise<void> {
 		if (!force && await detectWebpSupport()) return undefined
-		
-		const src = image.src
-		if (/.webp$/.test(src)) {
-			if (this.cache[src]) {
-				image.src = this.cache[src]
-				continue
-			}
+		let hero = this
+		for (const image of imageList) {
+			let src = undefined
+			if (image['srcNext'] !== undefined) {src = image['srcNext']} else {src = image.src}
+			if (!(/.webp$/.test(src))) continue
+			if (this.cache[src]) {image.src = this.cache[src]; continue}
 			try {
-				const webpdata = await loadBinaryData(src)
-				const pngdata = await this.decode(webpdata)
-				image.src = this.cache[src] = pngdata
+                		const webpdata = await loadBinaryData(src)
+                		const tryNow = async function () {
+					const pngdata = await hero.decode(webpdata)
+					image.src = hero.cache[src] = pngdata
+				}
+				if (!hero.busy) {
+					tryNow()
+				} else {
+					let testInterval = window.setInterval(function () {
+						if (!hero.busy) {window.clearInterval(testInterval); tryNow()}
+					}, 50)
+				}
 			} catch (error) {
 				console.error(`error decoding webp image "${src}"`, error)
 				throw error
